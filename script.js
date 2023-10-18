@@ -1,5 +1,46 @@
 import { roles, profiles, countries, divisions, BusinessUnits, BusinessUnitsMap, productGroups, productGroupsMap, departmentTypes } from "./helper.js"
 
+
+const defaultData = new Map();
+defaultData['FirstName'] = ''
+defaultData['LastName'] = ''
+defaultData['Alias'] = ''
+defaultData['Email'] = ''
+defaultData['Username'] = ''
+defaultData['FederationIdentifier'] = ''
+defaultData['Title'] = ''
+defaultData['CompanyName'] = ''
+defaultData['Department'] = ''
+defaultData['Country'] = ''
+defaultData['Profile:Profile:Name'] = ''
+defaultData['LanguageLocaleKey'] = ''
+defaultData['EmailEncodingKey'] = ''
+defaultData['LocaleSidKey'] = ''
+defaultData['TimeZoneSidKey'] = ''
+defaultData['Department_Type__c'] = ''
+defaultData['Product_Group_PG__c'] = ''
+defaultData['Business_Unit_BU__c'] = ''
+defaultData['Business_Area_UAM__c'] = ''
+defaultData['Division_DIV__c'] = ''
+defaultData['MobilePhone'] = ''
+defaultData['Phone'] = ''
+
+
+function columnToNumber(col) {
+    return col.split('').reduce((acc, char) => acc * 26 + char.charCodeAt(0) - 'A'.charCodeAt(0) + 1, 0);
+}
+
+function numberToColumn(num) {
+    let result = '';
+    while (num > 0) {
+        const remainder = (num - 1) % 26;
+        result = String.fromCharCode('A'.charCodeAt(0) + remainder) + result;
+        num = Math.floor((num - 1) / 26);
+    }
+    return result;
+}
+
+
 document.addEventListener("DOMContentLoaded", function () {
     const fileInput = document.getElementById("fileInput");
     const fieldsToIgnore = ['Are you a Sales user', 'Are you a Factory User', 'Do you need access to Salesforce  Quotation', 'Business Justification', 'Permission set', 'Region', 'Street', 'City', 'Country', 'Subregion', 'Counrty', 'HUB']
@@ -15,6 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
+
     const retrieveData = document.getElementById('retrieveData')
     const clearLocalStorage = document.getElementById('clearLocalStorage')
     let data
@@ -24,6 +66,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let table1
     const storageKey = 'myData';
     let usersData = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+
 
 
     deleteUsersButton.addEventListener('click', function () {
@@ -37,7 +81,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 selectedIndexes.push(index);
             }
         });
+        if (selectedIndexes.length == 0) {
+            alert('Please select user/users to delete')
 
+        }
 
         // Now, iterate through the selectedIndexes array and delete the corresponding users from usersData.
         selectedIndexes.sort((a, b) => b - a); // Sort in descending order to avoid index shifting
@@ -50,7 +97,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const key = 'myData'; // The key under which your data is stored
 
         const newData = JSON.stringify(usersData);
-        const data = localStorage.getItem(key)
+        //const data = localStorage.getItem(key)
         localStorage.setItem(key, newData);
         while (allUsersTable.firstChild) {
             allUsersTable.removeChild(allUsersTable.firstChild);
@@ -77,13 +124,16 @@ document.addEventListener("DOMContentLoaded", function () {
     clearLocalStorage.addEventListener('click', function () {
         if (usersData.length == 0) {
             alert("No user's data to clear")
+
         }
-        while (allUsersTable.firstChild) {
-            allUsersTable.removeChild(allUsersTable.firstChild);
+        else {
+            while (allUsersTable.firstChild) {
+                allUsersTable.removeChild(allUsersTable.firstChild);
+            }
+            localStorage.clear()
+            alert("User's data is cleared")
+            usersData = []
         }
-        localStorage.clear()
-        alert("User's data is cleared")
-        usersData = []
     })
 
     clipboardInput.addEventListener("change", function () {
@@ -168,6 +218,10 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     const setOtherValues = (finalData) => {
+        finalData['UserPermissionsKnowledgeUser'] = false;
+        finalData['FSLABB_Case_Data_PrePop__c'] = false;
+        finalData['Empolis_Visible__c'] = false;
+        finalData['UserPermissionsMarketingUser'] = false;
         finalData['Business_Area_UAM__c'] = finalData['Division_DIV__c']
 
         if ((finalData['Profile:Profile:Name'] == 'ABB Sales Standard Profile' || finalData['Profile:Profile:Name'] == 'ABB Customer Support Profile') && finalData['Business_Area_UAM__c'] === 'MO') {
@@ -232,7 +286,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 clipboardInput.value = ''
 
 
-
                 sheet1Data = [];
                 sheetData = [];
                 userData = [];
@@ -246,53 +299,93 @@ document.addEventListener("DOMContentLoaded", function () {
                         let columnNames = [];
                         let jsonData
 
+
                         for (const cell in workbook.Sheets[sheetName]) {
                             const cellValue = workbook.Sheets[sheetName][cell].v;
 
-                            // Check if the value in the first column is "username"
+                            // Check if the value in the first column is "User Name"
                             if (cell.startsWith('A') && cellValue === 'User Name') {
-                                criteriaRow = cell;
+                                criteriaRow = parseInt(cell.substring(1)); // Extract the row number and convert it to an integer
                                 break; // Stop after finding the first matching row
                             }
                         }
+
+                        //let lastColumn
+
                         if (criteriaRow) {
                             // Extract column names from the criteria row
                             for (const col in workbook.Sheets[sheetName]) {
-                                if (col.startsWith(criteriaRow.charAt(0))) {
-                                    columnNames.push(workbook.Sheets[sheetName][col].v);
-                                }
-                            }
-                            const lastColumn = Object.keys(workbook.Sheets[sheetName]).filter(col => col.startsWith(criteriaRow.charAt(0))).pop();
+                                const cellValue = workbook.Sheets[sheetName][col].v;
+                                const cellRow = parseInt(col.substring(1)); // Extract the row number of the current cell
 
+                                // Check if the cell is on the same row as the criteriaRow
+                                if (cellRow === criteriaRow) {
+
+                                    columnNames.push(cellValue);
+                                }
+
+                            }
+
+                            let temp = `A${criteriaRow}`
+
+                            // /console.log(Object.values(workbook.Sheets[sheetName]))
+                            let len = columnNames.length
+                            const lastColumn = Object.keys(workbook.Sheets[sheetName]).filter(col => col.startsWith(temp.charAt(0))).pop();
+
+
+
+                            console.log(lastColumn)
+                            let lastColumnNumber = columnToNumber(lastColumn);
+
+                            // Add len to the last column
+                            lastColumnNumber += len;
+
+                            // Convert the updated last column number back to column letters
+                            let updatedLastColumn = numberToColumn(lastColumnNumber);
+
+                            // Use the updated range
 
                             // Use XLSX.utils.sheet_to_json with the specified range
+
+
                             jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
 
                                 defval: '',
-                                range: `A${parseInt(criteriaRow.substring(1))}:${lastColumn}` // Start reading data from A5
+                                range: `A${criteriaRow.toString()}:${updatedLastColumn}${lastColumn.substring(1)}` // Start reading data from A5
                             });
+
+
+                            //Determine the last column with data across all rows
+
 
                         } else {
                             console.error("Criteria row not found.");
                         }
-
-
-
-                        let count = 0;
-                        for (let d in sheet1Data) {
-
-                            if (sheet1Data[d]['Red Marked Columns are Mandatory '] === 'User Name') {
-
-                                break;
-                            }
-                            count++;
-
+                        if (jsonData[0]['User Name'] === 'Suhey Maldonado') {
+                            jsonData = jsonData.slice(1)
                         }
+                        console.log(jsonData)
+
+                        jsonData = jsonData.filter(item => item['User Name'] !== '');
+
+                        jsonData = jsonData.map(item => {
+                            const filteredItem = {};
+                            for (const key in item) {
+                                if (item[key] !== '') {
+                                    filteredItem[key] = item[key];
+                                }
+                            }
+                            return filteredItem;
+                        });
+
+
+
+                        console.log(jsonData);
+
+                        console.log(jsonData)
 
 
                         sheetData = jsonData
-
-
 
 
                     } else {
@@ -308,23 +401,25 @@ document.addEventListener("DOMContentLoaded", function () {
             };
             reader.readAsBinaryString(file);
         }
-
-
-
     });
+
+
+
+
+
 
     const setDataFromReferenceUser = (finalData, key, value) => {
         if (!finalData[key]) {
 
             if (key == 'Profile.Name') {
                 if (doesProfileExist(value)) {
-                    finalData['Profile:Profile:Name'] = value
+                    finalData['Profile:Profile:Name'] = value || ''
                 }
 
             }
             else if (key == 'UserRole.Name') {
                 if (doesRoleExist(value)) {
-                    finalData['UserRole:UserRole:Name'] = value
+                    finalData['UserRole:UserRole:Name'] = value || ''
                 }
             }
 
@@ -337,6 +432,7 @@ document.addEventListener("DOMContentLoaded", function () {
         deleteUsersButton.style.display = 'none'
         fileInput.value = null;
         clipboardInput.value = ''
+        console.log(sheetData)
         if (sheetData.length === 0) {
             alert("Please upload Excel data before populating.");
             return;
@@ -350,23 +446,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
+        if (data) {
+            var lines = data.trim().split('\n');
+            var headers = lines[0].split('\t');
+            var values = lines[1].split('\t');
+            var jsonData = {};
+            for (var i = 0; i < headers.length; i++) {
+                var key = headers[i].replace(/"/g, ''); // Remove double quotes
+                var value = values[i].replace(/"/g, ''); // Remove double quotes
+                jsonData[key] = value;
 
-        var lines = data.trim().split('\n');
-        var headers = lines[0].split('\t');
-        var values = lines[1].split('\t');
-        var jsonData = {};
-        for (var i = 0; i < headers.length; i++) {
-            var key = headers[i].replace(/"/g, ''); // Remove double quotes
-            var value = values[i].replace(/"/g, ''); // Remove double quotes
-            jsonData[key] = value;
 
-
+            }
+            referenceUserData.push(jsonData)
         }
-        referenceUserData.push(jsonData)
+
+
+
+
         sheetData.forEach((val) => {
 
-            let finalData = new Map();
+            let finalData = { ...defaultData };
+            console.log(finalData)
             setData(val, finalData)
+
             referenceUserData.forEach((value, key) => {
                 for (const k in value) {
                     if (value.hasOwnProperty(k)) {
@@ -375,19 +478,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
                         if (k == 'UserRole.Name' && finalData['UserRole:UserRole:Name'] && finalData['UserRole:UserRole:Name'] != v) {
                             alert('The role of the user and reference user do not match.')
+                            finalData['UserRole:UserRole:Name'] = v
                             continue
                         }
                         else if (k == 'Profile.Name' && finalData['Profile:Profile:Name'] && finalData['Profile:Profile:Name'] != v) {
                             alert('The profile of the user and refernce user do not match.')
+                            finalData['Profile:Profile:Name'] = v;
                             continue
 
                         }
                         else if (k == 'Division_DIV__c' && finalData[k] && finalData['Division_DIV__c'] != v) {
                             alert('The Business Area(Division_DIV__c) of the user and reference user do not match.')
-                            // finalData['Division_DIV__c']=''
-                            // finalData['Business_Area_UAM__c']=''
-                            // finalData['Business_Unit_BU__c']=''
-                            // finalData['Product_Group_PG__c']=''
+
                             continue
                         }
 
@@ -403,13 +505,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             })
             setOtherValues(finalData);
+            delete finalData.defaultData
+            console.log(finalData)
             userData.push(finalData)
-
 
 
         })
 
-        let finalData = userData[0]
+
 
         for (var key in jsonData) {
             if (jsonData.hasOwnProperty(key)) {
@@ -430,45 +533,6 @@ document.addEventListener("DOMContentLoaded", function () {
         tablesDiv.appendChild(table1);
         tablesDiv.appendChild(table2);
 
-        // referenceUserData.forEach((value, key) => {
-        //     for (const k in value) {
-        //         if (value.hasOwnProperty(k)) {
-        //             const v = value[k];
-
-
-        //             if (k == 'UserRole.Name' && finalData['UserRole:UserRole:Name'] && finalData['UserRole:UserRole:Name'] != v) {
-        //                 alert('The role of the user and reference user do not match.')
-        //                 continue
-        //             }
-        //             else if (k == 'Profile.Name' && finalData['Profile:Profile:Name'] && finalData['Profile:Profile:Name'] != v) {
-        //                 alert('The profile of the user and refernce user do not match.')
-        //                 continue
-
-        //             }
-        //             else if (k == 'Division_DIV__c' && finalData[k] && finalData['Division_DIV__c'] != v) {
-        //                 alert('The Business Area(Division_DIV__c) of the user and reference user do not match.')
-        //                 // finalData['Division_DIV__c']=''
-        //                 // finalData['Business_Area_UAM__c']=''
-        //                 // finalData['Business_Unit_BU__c']=''
-        //                 // finalData['Product_Group_PG__c']=''
-        //                 continue
-        //             }
-
-        //             else if (!finalData[k]) {
-        //                 if (k === '_' || k === 'UserRole' || k === 'Profile' || k === 'Id') {
-        //                     continue
-        //                 }
-        //                 else {
-        //                     setDataFromReferenceUser(finalData, k, v)
-        //                 }
-        //             }
-        //         }
-        //     }
-        // })
-
-
-
-
 
         usersData = [...usersData, ...userData]
         const dataJSON = JSON.stringify(usersData);
@@ -479,8 +543,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         populatedTable = createTable(userData);
 
-        downloadButton.style.display = "none"
-        copyToClipboardButton.style.display = 'none'
+        downloadButton.style.display = "block"
+        copyToClipboardButton.style.display = 'block'
 
 
         populatedTable.id = "populatedTable";
@@ -524,9 +588,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     function renderTables() {
 
-        if (sheetData[0]['User Name'] === 'Suhey Maldonado') {
-            sheetData = sheetData.slice(1)
-        }
+
+
 
 
         sheetData.forEach((obj) => {
@@ -536,6 +599,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
         });
+
 
 
         table1 = createTable(sheetData);
@@ -552,24 +616,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     }
-    // function createTable(data) {
-    //     const table = document.createElement("table");
-    //     const headerRow = table.insertRow(0);
-    //     for (const key in data[0]) {
-    //         const th = document.createElement("th");
-    //         th.textContent = key;
-    //         headerRow.appendChild(th);
-    //     }
-    //     data.forEach((row, index) => {
-    //         const newRow = table.insertRow();
 
-    //         for (const key in row) {
-    //             const cell = newRow.insertCell();
-    //             cell.textContent = row[key];
-    //         }
-    //     });
-    //     return table;
-    // }
 
     function createTable(data, needCheckbox) {
         const table = document.createElement("table");
@@ -596,7 +643,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 const checkboxCell = newRow.insertCell();
 
                 // Create a unique checkbox ID based on the row index.
-                const checkboxId = `checkbox-${index}`;
+                const checkboxId = `checkbox- ${index}`;
 
                 // Create the checkbox element and set its attributes.
                 const checkbox = document.createElement("input");
@@ -617,22 +664,32 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const setData = (value, finalData) => {
-        const fullName = value['User Name'].split(" ");
+
+
+        const name = value['User Name'] ? value['User Name'] : value['username']
+        console.log(name)
+
+        const fullName = name.split(" ");
         //Full Name Field
         if (fullName.length > 1) {
             finalData['FirstName'] = fullName[0];
             finalData['LastName'] = fullName[1];
-            finalData['Alias'] = fullName[1].length >= 3 ? (fullName[0].slice(0, 1) + fullName[1].slice(0, 3)).toLowerCase() : (fullName[0].slice(0, (5 - fullName[1].length)) + fullName[1].slice(0, 3)).toLowerCase();
+            const Alias = fullName[1].length >= 3 ? (fullName[0].slice(0, 1) + fullName[1].slice(0, 3)) : (fullName[0].slice(0, (5 - fullName[1].length)) + fullName[1].slice(0, 3));
+            finalData['Alias'] = Alias.toLowerCase()
 
         }
         else {
             finalData['LastName'] = fullName[0];
-            finalData['Alias'] = (fullName[0].slice(0, 4)).toLowerCase();
+            const Alias = fullName[0].slice(0, 4)
+            finalData['Alias'] = Alias.toLowerCase();
         }
         //Email Username FederationIdentifier
-        finalData['Email'] = value['User email'];
-        finalData['Username'] = value['User email'];
-        finalData['FederationIdentifier'] = value['User email'].toLowerCase();
+        console.log(value['User email'])
+        const Email = value['User email']
+        finalData['Email'] = Email.toLowerCase();
+
+        finalData['Username'] = Email.toLowerCase();
+        finalData['FederationIdentifier'] = Email.toLowerCase();
 
         //Title, Department, Company Name
 
@@ -641,42 +698,43 @@ document.addEventListener("DOMContentLoaded", function () {
         finalData['Department'] = value['Department'];
 
         //Country
-        finalData['Country'] = getCountry(value['User email'])
+        finalData['Country'] = getCountry(value['User email']) || ''
 
         //Phone Mobile
         finalData['Phone'] = value['Phone Number']
         finalData['MobilePhone'] = value['Mobile Number']
 
         //Division
-        finalData['Division_DIV__c'] = getDivisions(value['Business ']) || getDivisions(value['Business Area '])
+        finalData['Division_DIV__c'] = getDivisions(value['Business ']) || getDivisions(value['Business Area ']) || ''
         finalData['Business_Area_UAM__c'] = finalData['Division_DIV__c']
 
         //Business_Unit_BU__c
-        finalData['Business_Unit_BU__c'] = getBusinessUnits(value['Division'])
+        finalData['Business_Unit_BU__c'] = getBusinessUnits(value['Division']) || ''
 
         //Product Groups
-        finalData['Product_Group_PG__c'] = getProductGroups(value['Product Group'])
+        finalData['Product_Group_PG__c'] = getProductGroups(value['Product Group']) || ''
 
         //Department_type
-        finalData['Department_Type__c'] = getDepartmentType(value['Department type'])
+        finalData['Department_Type__c'] = getDepartmentType(value['Department type']) || ''
 
         finalData['TimeZoneSidKey'] = 'Europe/Berlin'
         finalData['LocaleSidKey'] = 'en_GB'
 
         finalData['EmailEncodingKey'] = 'UTF-8'
         finalData['LanguageLocaleKey'] = 'en_US'
+        finalData['Manager:User:Email'] = value['Line Manager']
         if (doesRoleExist(value['Role'])) {
-            finalData[`UserRole:UserRole:Name`] = value['Role']
+            finalData[`UserRole:UserRole:Name`] = value['Role'] || ''
         }
         if (doesProfileExist(value['Profile'])) {
-            finalData[`Profile:Profile:Name`] = value['Profile']
+            finalData[`Profile:Profile:Name`] = value['Profile'] || ''
         }
 
 
 
     }
 
-    // Function to create a table from data
+
 
     downloadButton.addEventListener("click", function () {
         if (usersData.length === 0) {
